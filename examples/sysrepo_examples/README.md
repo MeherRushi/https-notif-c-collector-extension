@@ -46,3 +46,13 @@ Path: /example:capabilities/receiver-capabilities[receiver-capability='urn:ietf:
 Path: /example:capabilities/receiver-capabilities[receiver-capability='urn:ietf:capability:https-notif-receiver:encoding:xml'], Value: (null)
 Path: /example:capabilities/receiver-capabilities[receiver-capability='urn:ietf:capability:https-notif-receiver:sub-notif'], Value: (null)
 ```
+
+> Note for self reference :
+
+```bash
+make clean
+make
+sudo make install
+cd examples/
+sudo gcc client_sample.c -lunyte-https-notif -lsysrepo
+```

@@ -183,7 +183,9 @@ static enum MHD_Result dispatcher(void *cls,
   if ((0 == strcmp(method, "GET")) && (0 == strcmp(url, "/capabilities"))){
     //recalling init_capabilites_buff here again, which should in theory read the 
     // object store and fetch the data?? "input->capabilities" has to be changed
+    printf("DEBUG: string comparision for get capabilities is called\n");
     input->capabilities = reinit_capabilities_buff(input->disable_json, input->disable_xml);
+    printf("DEBUG: AFTER for get capabilities is called\n");
 
     return get_capabilities(connection, input->capabilities);
   }
