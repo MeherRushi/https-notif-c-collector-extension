@@ -181,11 +181,14 @@ static enum MHD_Result dispatcher(void *cls,
   }
 
   if ((0 == strcmp(method, "GET")) && (0 == strcmp(url, "/capabilities"))){
-    //recalling init_capabilites_buff here again, which should in theory read the 
-    // object store and fetch the data?? "input->capabilities" has to be changed
+    // As intended, input->capabilities is initialsed here
     printf("DEBUG: string comparision for get capabilities is called\n");
-    input->capabilities = reinit_capabilities_buff(input->disable_json, input->disable_xml);
+    input->capabilities = reinit_capabilities_buff();
     printf("DEBUG: AFTER for get capabilities is called\n");
+
+    if( input->capabilities == NULL) {
+      return MHD_NO;
+    }
 
     return get_capabilities(connection, input->capabilities);
   }
@@ -229,8 +232,8 @@ void daemon_panic(void *cls, const char *file, unsigned int line, const char *re
   printf("HTTPS server panic: %s\n", reason);
 }
 
-struct unyte_daemon *start_https_server_daemon(unyte_https_sock_t *conn, unyte_https_queue_t *output_queue, const char *key_pem, const char *cert_pem,
-                                               bool disable_json, bool disable_xml)
+struct unyte_daemon *start_https_server_daemon(unyte_https_sock_t *conn, unyte_https_queue_t *output_queue, const char *key_pem, const char *cert_pem)
+                                              //  bool disable_json, bool disable_xml)
 {
   struct unyte_daemon *daemon = (struct unyte_daemon *)malloc(sizeof(struct unyte_daemon));
   daemon_input_t *daemon_in = (daemon_input_t *)malloc(sizeof(daemon_input_t));
@@ -241,28 +244,21 @@ struct unyte_daemon *start_https_server_daemon(unyte_https_sock_t *conn, unyte_h
     return NULL;
   }
 
-  //The init_capabilities_buff is initialised here
-  // idea is to not initialize it here, but make it read from the sysrepo object store
-  // every time it gets a GET CAPABILITIES REQUEST
-  // daemon_input_t is just https_queue and https_capabilities
-  //   typedef struct
-  // {
-  //   unyte_https_queue_t *output_queue;
-  //   unyte_https_capabilities_t *capabilities;
-  // }daemon_input_t;
-  // implementing the idea will need some restrcturing, so ive simply called the
-  // init_capa_buf function in the dispatcher when the request type is "GET"
+  /* Removed initialisation of capabilities here, instead it is initialised
+     when a GET request is sent to the /capabilities endpoint
+
   unyte_https_capabilities_t *capabilities = init_capabilities_buff(disable_json, disable_xml);
+  unyte_https_capabilities_t *capabilities = malloc(sizeof(unyte_https_capabilities_t));
   if (capabilities == NULL)
   {
     printf("Capabilities malloc failed or invalid\n");
     return NULL;
-  }
+   } */
 
   daemon_in->output_queue = output_queue;
-  daemon_in->capabilities = capabilities;
-  daemon_in->disable_json = disable_json;
-  daemon_in->disable_xml = disable_xml;
+  /*daemon_in->capabilities does not contain any capability info at this stage
+    it will be popoulated inside the dispatcher every time a GET request to /capabilities comes */
+  // daemon_in->capabilities = capabilities;
 
   struct MHD_Daemon *d = MHD_start_daemon(MHD_USE_INTERNAL_POLLING_THREAD | MHD_USE_TLS | MHD_USE_DUAL_STACK,
                                           0, NULL, NULL,

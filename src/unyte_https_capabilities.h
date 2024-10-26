@@ -30,7 +30,7 @@ typedef struct capabilities
 #define XML_CAP_WRAPPER_END "</receiver-capability>"
 
 unyte_https_capabilities_t *init_capabilities_buff(bool disable_json_encoding, bool disable_xml_encoding);
-unyte_https_capabilities_t *reinit_capabilities_buff(bool disable_json_encoding, bool disable_xml_encoding);
+unyte_https_capabilities_t *reinit_capabilities_buff();
 void free_capabilities_buff(unyte_https_capabilities_t *capabilities);
 
 #endif

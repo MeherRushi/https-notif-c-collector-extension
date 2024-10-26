@@ -171,24 +171,19 @@ void add_json_capability(unyte_https_capabilities_t *capabilities, int *json_it,
   capabilities->enabled.json_encoding = true;
 }
 
-void check_json_xml_from_datastore(unyte_https_capabilities_t *capabilities, sr_val_t *vals, size_t val_count)
-{
-  for (int i = 0; i < val_count; i++)
-  {
+void check_json_xml_from_datastore(unyte_https_capabilities_t *capabilities, sr_val_t *vals, size_t val_count) {
+  for (int i = 0; i < val_count; i++) {
 
-    if (strstr(vals[i].xpath, URN_ENCODING_JSON) != NULL)
-    {
+    if (strcasestr(vals[i].xpath, URN_ENCODING_JSON) != NULL) {
       capabilities->enabled.json_encoding = true;
     }
 
-    if (strstr(vals[i].xpath, URN_ENCODING_XML) != NULL)
-    {
+    if (strcasestr(vals[i].xpath, URN_ENCODING_XML) != NULL) {
       capabilities->enabled.xml_encoding =  true;
     }
 
     // Exit early if both are true
-    if(capabilities->enabled.json_encoding && capabilities->enabled.xml_encoding)
-    {
+    if(capabilities->enabled.json_encoding && capabilities->enabled.xml_encoding) {
       break;
     } 
   }
@@ -301,7 +296,7 @@ void build_json(const sr_val_t *vals, int size, unyte_https_capabilities_t *capa
 }
 
 
-unyte_https_capabilities_t *reinit_capabilities_buff(bool disable_json_encoding, bool disable_xml_encoding) {
+unyte_https_capabilities_t *reinit_capabilities_buff() {
   printf("DEBUG: entered reinit\n");
 
   //create a sysrepo connection and session
@@ -360,23 +355,22 @@ unyte_https_capabilities_t *reinit_capabilities_buff(bool disable_json_encoding,
   printf("DEBUG: capabilities->enabled.json_encoding: %d\n", capabilities->enabled.json_encoding);
   printf("DEBUG: capabilities->enabled.xml_encoding: %d\n", capabilities->enabled.xml_encoding);
 
-  disable_json_encoding = !capabilities->enabled.json_encoding;
-  disable_xml_encoding = !capabilities->enabled.xml_encoding;
+  // disable_json_encoding = !capabilities->enabled.json_encoding;
+  // disable_xml_encoding = !capabilities->enabled.xml_encoding;
 
-  if (disable_json_encoding && disable_xml_encoding)
-  {
+  if (!capabilities->enabled.json_encoding && !capabilities->enabled.xml_encoding) {
     printf("Cannot initialize capabilities ignoring all supported encodings. Enable one or more encodings\n");
     return NULL;
   }
 
-  if(!disable_xml_encoding){
+  if(capabilities->enabled.xml_encoding) {
     //read the xml capability from the datastore
     // and assign to capabilities->xml and capabilities->xml_length
     printf("DEBUG: building xml\n");
     build_xml(vals, val_count, capabilities);
   }
 
-  if(!disable_json_encoding){
+  if(capabilities->enabled.json_encoding) {
     //read the json capability from the datastore
     // and assign to capabilities->json and capabilities->json_length
     printf("DEBUG: building json\n");

@@ -66,8 +66,6 @@ int main(int argc, char *argv[])
   options.port = argv[2];
   options.cert_pem = cert_pem;
   options.key_pem = key_pem;
-  // options.disable_xml_encoding = true;
-  // options.disable_json_encoding = false;
 
   unyte_https_collector_t *collector = unyte_https_start_collector(&options);
   printf("Starting collector on %s:%s\n", options.address, options.port);

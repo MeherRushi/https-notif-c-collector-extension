@@ -24,8 +24,6 @@ typedef struct
   char *key_pem;
   char *cert_pem;
   uint output_queue_size;     // output queue size
-  bool disable_json_encoding; // disable json encoding messages
-  bool disable_xml_encoding;  // disable xml encoding messages
   uint64_t sock_buff_size;    // socket buffer size
   uint sock_listen_backlog;   // socket listen backlog parameter (max lenght of queue pending connections)
 } unyte_https_options_t;

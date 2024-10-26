@@ -147,9 +147,7 @@ unyte_https_collector_t *unyte_https_start_collector_sk(unyte_https_sk_options_t
   struct unyte_daemon *daemon = start_https_server_daemon(conn,
                                                           queue,
                                                           options->key_pem,
-                                                          options->cert_pem,
-                                                          options->disable_json_encoding,
-                                                          options->disable_xml_encoding);
+                                                          options->cert_pem);
   if (daemon == NULL)
   {
     printf("Error creating daemon\n");
@@ -181,9 +179,7 @@ unyte_https_collector_t *unyte_https_start_collector(unyte_https_options_t *opti
   struct unyte_daemon *daemon = start_https_server_daemon(conn,
                                                           queue,
                                                           options->key_pem,
-                                                          options->cert_pem,
-                                                          options->disable_json_encoding,
-                                                          options->disable_xml_encoding);
+                                                          options->cert_pem);
 
   if (daemon == NULL)
   {
