@@ -70,6 +70,10 @@ enum MHD_Result get_capabilities(struct MHD_Connection *connection, unyte_https_
   struct MHD_Response *response;
   const char *req_content_type = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, UHTTPS_CONTENT_TYPE);
   // if application/xml send xml format else json
+    // CHANGE HERE, RE INITIALIZE THE STRUCTURE EVERY TIME A 
+  // GET CAPABILITIES REQUEST IS MADE?
+  // I think it makes sense to read from the sysrepo data store every time a get 
+  // capabilities request is made?
   if (req_content_type != NULL && 0 == strcmp(req_content_type, UHTTPS_MIME_XML))
   {
     response = MHD_create_response_from_buffer(capabilities->xml_length, (void *)capabilities->xml, MHD_RESPMEM_PERSISTENT);
@@ -156,6 +160,7 @@ static enum MHD_Result dispatcher(void *cls,
                                   void **con_cls)
 {
   (void)version; /* Unused. Silent compiler warning. */
+  //cls was passed while calling MHD_start daemon as "daemon_in" 
   daemon_input_t *input = (daemon_input_t *)cls;
   // if POST malloc buffer to save body
   if ((NULL == *con_cls) && (0 == strcmp(method, "POST")))
@@ -175,8 +180,15 @@ static enum MHD_Result dispatcher(void *cls,
     return MHD_YES;
   }
 
-  if ((0 == strcmp(method, "GET")) && (0 == strcmp(url, "/capabilities")))
+  if ((0 == strcmp(method, "GET")) && (0 == strcmp(url, "/capabilities"))){
+    //recalling init_capabilites_buff here again, which should in theory read the 
+    // object store and fetch the data?? "input->capabilities" has to be changed
+    printf("DEBUG: string comparision for get capabilities is called\n");
+    input->capabilities = reinit_capabilities_buff(input->disable_json, input->disable_xml);
+    printf("DEBUG: AFTER for get capabilities is called\n");
+
     return get_capabilities(connection, input->capabilities);
+  }
   else if ((0 == strcmp(method, "POST")) && (0 == strcmp(url, "/relay-notification")))
   {
     struct unyte_https_body *body_buff = *con_cls;
@@ -229,6 +241,17 @@ struct unyte_daemon *start_https_server_daemon(unyte_https_sock_t *conn, unyte_h
     return NULL;
   }
 
+  //The init_capabilities_buff is initialised here
+  // idea is to not initialize it here, but make it read from the sysrepo object store
+  // every time it gets a GET CAPABILITIES REQUEST
+  // daemon_input_t is just https_queue and https_capabilities
+  //   typedef struct
+  // {
+  //   unyte_https_queue_t *output_queue;
+  //   unyte_https_capabilities_t *capabilities;
+  // }daemon_input_t;
+  // implementing the idea will need some restrcturing, so ive simply called the
+  // init_capa_buf function in the dispatcher when the request type is "GET"
   unyte_https_capabilities_t *capabilities = init_capabilities_buff(disable_json, disable_xml);
   if (capabilities == NULL)
   {
@@ -238,6 +261,8 @@ struct unyte_daemon *start_https_server_daemon(unyte_https_sock_t *conn, unyte_h
 
   daemon_in->output_queue = output_queue;
   daemon_in->capabilities = capabilities;
+  daemon_in->disable_json = disable_json;
+  daemon_in->disable_xml = disable_xml;
 
   struct MHD_Daemon *d = MHD_start_daemon(MHD_USE_INTERNAL_POLLING_THREAD | MHD_USE_TLS | MHD_USE_DUAL_STACK,
                                           0, NULL, NULL,

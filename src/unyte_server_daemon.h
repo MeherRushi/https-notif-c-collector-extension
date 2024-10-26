@@ -22,10 +22,13 @@ typedef struct
   int sockfd;               // The socket file descriptor
 } unyte_https_sock_t;
 
+//edited this struct to store information if json/xml capabilities are allowed
 typedef struct
 {
   unyte_https_queue_t *output_queue;
   unyte_https_capabilities_t *capabilities;
+  bool disable_json;
+  bool disable_xml;
 } daemon_input_t;
 
 struct unyte_daemon
