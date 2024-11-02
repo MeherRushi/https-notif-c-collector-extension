@@ -12,6 +12,7 @@
 #define UHTTPS_CONTENT_TYPE "Content-Type"
 #define UHTTPS_MIME_JSON "application/json"
 #define UHTTPS_MIME_XML "application/xml"
+#define UHTTPS_ACCEPT_HEADER "Accept"
 
 #define UHTTPS_POST_BUFFER_SIZE 65536
 #define UHTTPS_POST_BODY_SIZE 65536

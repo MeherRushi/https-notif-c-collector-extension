@@ -27,7 +27,7 @@ sysrepoctl --list
 
 - Then setup a example-config.xml file using any text editor and intiliaze/edit it as the  `running datastore`
 ```bash
-sysrepocfg --edit=example-config.xml datastore=running --format=xml
+sysrepocfg --copy-from=example-config.xml --datastore=running --format=xml --lock
 ```
 
 - Compile the sysrepo_read.c using the followings flags

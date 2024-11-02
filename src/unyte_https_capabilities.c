@@ -325,6 +325,8 @@ unyte_https_capabilities_t *reinit_capabilities_buff() {
     goto cleanup;
   }
 
+  printf("DEBUG: val_count: %d\n", val_count);
+  
   for(int i = 0; i < val_count; i++) {
     print_val(&vals[i]);
   }
