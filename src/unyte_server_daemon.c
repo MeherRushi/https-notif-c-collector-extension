@@ -65,6 +65,63 @@ enum MHD_Result bad_request(struct MHD_Connection *connection)
   return ret;
 }
 
+// General function to queue a response with specified content and status code
+enum MHD_Result queue_response(struct MHD_Connection *connection, const char *content_type, const void *content, size_t content_length, int status_code) {
+    struct MHD_Response *response = MHD_create_response_from_buffer(content_length, (void *)content, MHD_RESPMEM_PERSISTENT);
+    
+    if (content_type) {
+        MHD_add_response_header(response, UHTTPS_CONTENT_TYPE, content_type);
+    }
+
+    enum MHD_Result ret = MHD_queue_response(connection, status_code, response);
+    MHD_destroy_response(response);
+    return ret;
+}
+
+// Handle case when both JSON and XML are available
+enum MHD_Result handle_available_content_response(struct MHD_Connection *connection, unyte_https_capabilities_t *capabilities, float q_xml, float q_json) {
+    if (!capabilities->json && !capabilities->xml) {
+        return queue_response(connection, NULL, NULL, 0, MHD_HTTP_NOT_ACCEPTABLE);
+    } else if (!capabilities->json && capabilities->xml) {
+        return queue_response(connection, UHTTPS_MIME_XML, capabilities->xml, capabilities->xml_length, MHD_HTTP_OK);
+    } else if (capabilities->json && !capabilities->xml) {
+        return queue_response(connection, UHTTPS_MIME_JSON, capabilities->json, capabilities->json_length, MHD_HTTP_OK);
+    } else {
+        if (q_xml >= q_json) {
+            printf("DEBUG: q_xml >= q_json\n");
+            return queue_response(connection, UHTTPS_MIME_XML, capabilities->xml, capabilities->xml_length, MHD_HTTP_OK);
+        } else {
+            printf("DEBUG: q_xml < q_json\n");
+            return queue_response(connection, UHTTPS_MIME_JSON, capabilities->json, capabilities->json_length, MHD_HTTP_OK);
+        }
+    }
+}
+
+enum MHD_Result handle_bad_request(struct MHD_Connection *connection) {
+    return queue_response(connection, NULL, NULL, 0, MHD_HTTP_BAD_REQUEST);
+}
+
+// Handle case where no Accept header is provided
+enum MHD_Result handle_no_accept_header(struct MHD_Connection *connection, unyte_https_capabilities_t *capabilities) {
+    return queue_response(connection, UHTTPS_MIME_XML, capabilities->xml, capabilities->xml_length, MHD_HTTP_OK);
+}
+
+// Determine and queue the appropriate content response based on q-values and capabilities
+enum MHD_Result handle_content_response(struct MHD_Connection *connection, unyte_https_capabilities_t *capabilities, float q_xml, float q_json) {
+    if (q_xml == 0 && q_json == 0) {
+        return queue_response(connection, UHTTPS_MIME_XML, capabilities->xml, capabilities->xml_length, MHD_HTTP_OK);
+    } else if (q_xml == 0 && q_json != 0 && capabilities->json) {
+        printf("DEBUG: q_xml = 0, q_json != 0\n");
+        return queue_response(connection, UHTTPS_MIME_JSON, capabilities->json, capabilities->json_length, MHD_HTTP_OK);
+    } else if (q_json == 0 && q_xml != 0 && capabilities->xml) {
+        printf("DEBUG: q_json = 0, q_xml != 0\n");
+        return queue_response(connection, UHTTPS_MIME_XML, capabilities->xml, capabilities->xml_length, MHD_HTTP_OK);
+    } else {
+        return handle_available_content_response(connection, capabilities, q_xml, q_json);
+    }
+}
+
+
 float get_q_value(const char *accept, const char *type) {
     char *pos = strstr(accept, type);
     if (!pos) {
@@ -73,10 +130,6 @@ float get_q_value(const char *accept, const char *type) {
 
     char *q_pos = strstr(pos, ";q=");
     char *comma_pos = strchr(pos, ',');
-
-    printf("DEBUG: pos: %s\n", pos);
-    printf("DEBUG: q_pos: %s\n", q_pos);
-    printf("DEBUG: comma_pos: %s\n", comma_pos);
     
     if (q_pos && (!comma_pos || q_pos < comma_pos)) {
         return atof(q_pos + 3);  // Extract q value after ";q="
@@ -94,73 +147,27 @@ enum MHD_Result get_capabilities(struct MHD_Connection *connection, unyte_https_
   /* But we would prefer to read from Accept header as mentioned 
   in the draft (https://datatracker.ietf.org/doc/draft-ietf-netconf-https-notif/) in section 3.2 */
   const char *req_accept_header = MHD_lookup_connection_value(connection, MHD_HEADER_KIND, UHTTPS_ACCEPT_HEADER);
-
+  enum MHD_Result ret;
+  
   printf("DEBUG: req_content_type: %s\n", req_accept_header);
 
-  /* Changing the logic to handle responses as well. We parse the accept header and read the q-value
-  and order the priority based on that, if the q-values are equal then we return whatever server is 
-  comfortable with (here xml) */
-  enum MHD_Result ret = MHD_NO;
-  if(req_accept_header != NULL){
-      float q_xml = get_q_value(req_accept_header, UHTTPS_MIME_XML);
-      float q_json = get_q_value(req_accept_header, UHTTPS_MIME_JSON);
-      printf("DEBUG: q_xml: %f\n", q_xml);
-      printf("DEBUG: q_json: %f\n", q_json);
+  if (req_accept_header != NULL) {
+        float q_xml = get_q_value(req_accept_header, UHTTPS_MIME_XML);
+        float q_json = get_q_value(req_accept_header, UHTTPS_MIME_JSON);
 
-      if(q_xml == 0 && q_json == 0){
-        if(req_accept_header == "*/*"){
-        response = MHD_create_response_from_buffer(capabilities->xml_length, (void *)capabilities->xml, MHD_RESPMEM_PERSISTENT);
-        MHD_add_response_header(response, UHTTPS_CONTENT_TYPE, UHTTPS_MIME_XML);
-        ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
-        }
-      }
-      else if (q_xml == 0 && q_json != 0 && capabilities->json){
-        printf("DEBUG: q_xml = 0 and q_json != 0\n");
-        response = MHD_create_response_from_buffer(capabilities->json_length, (void *)capabilities->json, MHD_RESPMEM_PERSISTENT);
-        MHD_add_response_header(response, UHTTPS_CONTENT_TYPE, UHTTPS_MIME_JSON);
-        ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
-      }
-      else if (q_json == 0 && q_xml != 0 && capabilities->xml){
-        printf("DEBUG: q_json = 0 and q_xml != 0\n");
-        response = MHD_create_response_from_buffer(capabilities->xml_length, (void *)capabilities->xml, MHD_RESPMEM_PERSISTENT);
-        MHD_add_response_header(response, UHTTPS_CONTENT_TYPE, UHTTPS_MIME_XML);
-        ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
-      }
-      else {
-        if (!capabilities->json && !capabilities->xml){
-          response = MHD_create_response_from_buffer(0, NULL, MHD_RESPMEM_PERSISTENT);
-          ret = MHD_queue_response(connection, MHD_HTTP_NOT_ACCEPTABLE, response);
-        } else if (!capabilities->json && capabilities->xml){
-          response = MHD_create_response_from_buffer(capabilities->xml_length, (void *)capabilities->xml, MHD_RESPMEM_PERSISTENT);
-          MHD_add_response_header(response, UHTTPS_CONTENT_TYPE, UHTTPS_MIME_XML);
-          ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
-        } else if (capabilities->json && !capabilities->xml){
-          response = MHD_create_response_from_buffer(capabilities->json_length, (void *)capabilities->json, MHD_RESPMEM_PERSISTENT);
-          MHD_add_response_header(response, UHTTPS_CONTENT_TYPE, UHTTPS_MIME_JSON);
-          ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
+        printf("DEBUG: q_xml: %f, q_json: %f\n", q_xml, q_json);
+
+        if (q_json < 0 || q_xml < 0 || q_json > 1 || q_xml > 1) {
+            ret = handle_bad_request(connection);
         } else {
-          if(q_xml >= q_json){
-            printf("DEBUG: q_xml >= q_json\n");
-            response = MHD_create_response_from_buffer(capabilities->xml_length, (void *)capabilities->xml, MHD_RESPMEM_PERSISTENT);
-            MHD_add_response_header(response, UHTTPS_CONTENT_TYPE, UHTTPS_MIME_XML);
-            ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
-          }
-          else {
-            printf("DEBUG: q_xml < q_json\n");
-            response = MHD_create_response_from_buffer(capabilities->json_length, (void *)capabilities->json, MHD_RESPMEM_PERSISTENT);
-            MHD_add_response_header(response, UHTTPS_CONTENT_TYPE, UHTTPS_MIME_JSON);
-            ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
-          }
+            ret = handle_content_response(connection, capabilities, q_xml, q_json);
         }
-      }
+    } else {
+        ret = handle_no_accept_header(connection, capabilities);
+    }
 
-  }
-  else{
-    printf("DEBUG: req_content_type is NULL\n");
-  }
+    return ret;
 
-  MHD_destroy_response(response);
-  return ret;
 }
 
 enum MHD_Result post_notification(struct MHD_Connection *connection,
