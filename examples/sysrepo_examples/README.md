@@ -47,6 +47,15 @@ Path: /example:capabilities/receiver-capabilities[receiver-capability='urn:ietf:
 Path: /example:capabilities/receiver-capabilities[receiver-capability='urn:ietf:capability:https-notif-receiver:sub-notif'], Value: (null)
 ```
 
+## validation only
+
+- can refer to the `yang_validate.c` example. To comiple 
+
+```bash
+gcc yang_validate.c -lyang
+```
+
+
 > Note for self reference :
 
 ```bash

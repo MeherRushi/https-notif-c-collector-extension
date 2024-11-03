@@ -1,0 +1,31 @@
+   module example-mod {
+       namespace "http://example.com/event/1.0";
+       prefix ex;
+
+       organization "Example, Inc.";
+       contact "support at example.com";
+       description "Example Notification Data Model Module.";
+       revision "2016-07-07" {
+         description "Initial version.";
+         reference "example.com document 2-9976.";
+       }
+
+       notification event {
+         description "Example notification event.";
+         leaf event-class {
+           type string;
+           description "Event class identifier.";
+         }
+         container reporting-entity {
+           description "Event specific information.";
+           leaf card {
+             type string;
+             description "Line card identifier.";
+           }
+         }
+         leaf severity {
+           type string;
+           description "Event severity description.";
+         }
+       }
+     }
